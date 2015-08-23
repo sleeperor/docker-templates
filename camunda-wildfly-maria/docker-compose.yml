@@ -5,6 +5,9 @@ db:
     - MYSQL_DATABASE=camunda
     - MYSQL_USER=camunda
     - MYSQL_PASSWORD=camunda
+  volumes:
+    - ../sql/create/mysql_engine_7.3.0.sql:/docker-entrypoint-initdb.d/0_mysql_engine_7.3.0.sql
+    - ../sql/create/mysql_identity_7.3.0.sql:/docker-entrypoint-initdb.d/1_mysql_identity_7.3.0.sql
 
 bpm0:
   image: camunda/camunda-bpm-platform:wildfly-7.3.0
