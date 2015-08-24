@@ -16,6 +16,7 @@ bpm0:
     - DB_URL=jdbc:postgresql://db:5432/camunda
     - DB_USERNAME=camunda
     - DB_PASSWORD=camunda
+    - TZ=Europe/Warsaw
   links:
     - db:db
   ports:

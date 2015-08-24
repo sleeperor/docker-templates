@@ -16,6 +16,7 @@ bpm0:
     - DB_URL=jdbc:mysql://db:3306/camunda
     - DB_USERNAME=camunda
     - DB_PASSWORD=camunda
+    - TZ=Europe/Warsaw
   links:
     - db:db
   ports:
