@@ -3,6 +3,8 @@ db:
   environment:
     - POSTGRES_PASSWORD=camunda
     - POSTGRES_USER=camunda
+  ports:
+    - "5432:5432"
 
 wildfly:
   image: camunda/camunda-bpm-platform:wildfly-7.3.0
