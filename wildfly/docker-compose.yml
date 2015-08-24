@@ -1,0 +1,4 @@
+wildfly:
+  image: jboss/wildfly:9.0.1.Final
+  ports:
+    - "8080:8080"
