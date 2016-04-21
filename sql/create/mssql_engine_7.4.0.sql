@@ -31,6 +31,7 @@ create table ACT_RE_DEPLOYMENT (
     ID_ nvarchar(64),
     NAME_ nvarchar(255),
     DEPLOY_TIME_ datetime2,
+    SOURCE_ nvarchar(255),
     primary key (ID_)
 );
 
@@ -75,7 +76,8 @@ create table ACT_RU_JOB (
     HANDLER_TYPE_ nvarchar(255),
     HANDLER_CFG_ nvarchar(4000),
     DEPLOYMENT_ID_ nvarchar(64),
-    SUSPENSION_STATE_ tinyint,
+    SUSPENSION_STATE_ tinyint NOT NULL DEFAULT 1,
+    PRIORITY_ numeric(19,0) NOT NULL DEFAULT 0,
     JOB_DEF_ID_ nvarchar(64),
     SEQUENCE_COUNTER_ numeric(19,0),
     primary key (ID_)
@@ -90,6 +92,7 @@ create table ACT_RU_JOBDEF (
     JOB_TYPE_ nvarchar(255) NOT NULL,
     JOB_CONFIGURATION_ nvarchar(255),
     SUSPENSION_STATE_ tinyint,
+    JOB_PRIORITY_ numeric(19,0),
     primary key (ID_)
 );
 
@@ -219,8 +222,27 @@ create table ACT_RU_FILTER (
 create table ACT_RU_METER_LOG (
   ID_ nvarchar(64) not null,
   NAME_ nvarchar(64) not null,
+  REPORTER_ nvarchar(255),
   VALUE_ numeric(19,0),
   TIMESTAMP_ datetime2 not null,
+  primary key (ID_)
+);
+
+create table ACT_RU_EXT_TASK (
+  ID_ nvarchar(64) not null,
+  REV_ integer not null,
+  WORKER_ID_ nvarchar(255),
+  TOPIC_NAME_ nvarchar(255),
+  RETRIES_ int,
+  ERROR_MSG_ nvarchar(4000),
+  LOCK_EXP_TIME_ datetime2,
+  SUSPENSION_STATE_ tinyint,
+  EXECUTION_ID_ nvarchar(64),
+  PROC_INST_ID_ nvarchar(64),
+  PROC_DEF_ID_ nvarchar(64),
+  PROC_DEF_KEY_ nvarchar(255),
+  ACT_ID_ nvarchar(255),
+  ACT_INST_ID_ nvarchar(64),
   primary key (ID_)
 );
 
@@ -238,6 +260,7 @@ create unique index ACT_UNIQ_AUTH_USER on ACT_RU_AUTHORIZATION (TYPE_,USER_ID_,R
 create unique index ACT_UNIQ_AUTH_GROUP on ACT_RU_AUTHORIZATION (TYPE_,GROUP_ID_,RESOURCE_TYPE_,RESOURCE_ID_) where GROUP_ID_ is not null;
 create unique index ACT_UNIQ_VARIABLE on ACT_RU_VARIABLE(VAR_SCOPE_, NAME_);
 create index ACT_IDX_METER_LOG on ACT_RU_METER_LOG(NAME_,TIMESTAMP_);
+create index ACT_IDX_EXT_TASK_TOPIC on ACT_RU_EXT_TASK(TOPIC_NAME_);
 
 alter table ACT_GE_BYTEARRAY
     add constraint ACT_FK_BYTEARR_DEPL 
@@ -337,6 +360,11 @@ alter table ACT_RU_INCIDENT
     add constraint ACT_FK_INC_RCAUSE 
     foreign key (ROOT_CAUSE_INCIDENT_ID_) 
     references ACT_RU_INCIDENT (ID_);
+    
+alter table ACT_RU_EXT_TASK
+    add constraint ACT_FK_EXT_TASK_EXE 
+    foreign key (EXECUTION_ID_) 
+    references ACT_RU_EXECUTION (ID_);
 
 -- indexes for concurrency problems - https://app.camunda.com/jira/browse/CAM-1646 --
 create index ACT_IDX_EXECUTION_PROC on ACT_RU_EXECUTION(PROC_DEF_ID_);
@@ -358,6 +386,16 @@ create index ACT_IDX_VARIABLE_PROCINST on ACT_RU_VARIABLE(PROC_INST_ID_);
 create index ACT_IDX_TASK_EXEC on ACT_RU_TASK(EXECUTION_ID_);
 create index ACT_IDX_TASK_PROCINST on ACT_RU_TASK(PROC_INST_ID_);
 create index ACT_IDX_TASK_PROC_DEF_ID on ACT_RU_TASK(PROC_DEF_ID_);
+-- index for deadlock problem - https://app.camunda.com/jira/browse/CAM-4440 --
+create index ACT_IDX_AUTH_RESOURCE_ID on ACT_RU_AUTHORIZATION(RESOURCE_ID_);
+
+-- indexes to improve deployment
+create index ACT_IDX_BYTEARRAY_NAME on ACT_GE_BYTEARRAY(NAME_);
+create index ACT_IDX_DEPLOYMENT_NAME on ACT_RE_DEPLOYMENT(NAME_);
+create index ACT_IDX_JOBDEF_PROC_DEF_ID ON ACT_RU_JOBDEF(PROC_DEF_ID_);
+create index ACT_IDX_JOB_HANDLER_TYPE ON ACT_RU_JOB(HANDLER_TYPE_);
+create index ACT_IDX_EVENT_SUBSCR_EVT_NAME ON ACT_RU_EVENT_SUBSCR(EVENT_NAME_);
+create index ACT_IDX_PROCDEF_DEPLOYMENT_ID ON ACT_RE_PROCDEF(DEPLOYMENT_ID_);
 -- create case definition table --
 create table ACT_RE_CASE_DEF (
     ID_ nvarchar(64) not null,
@@ -400,6 +438,7 @@ create table ACT_RU_CASE_SENTRY_PART (
     TYPE_ nvarchar(255),
     SOURCE_CASE_EXEC_ID_ nvarchar(64),
     STANDARD_EVENT_ nvarchar(255),
+    SOURCE_ nvarchar(255),
     SATISFIED_ tinyint,
     primary key (ID_)
 );
@@ -472,6 +511,24 @@ create index ACT_IDX_TASK_CASE_DEF_ID on ACT_RU_TASK(CASE_DEF_ID_);
 -- add indexes for ACT_RU_CASE_SENTRY_PART --
 create index ACT_IDX_CASE_SENTRY_CASE_INST on ACT_RU_CASE_SENTRY_PART(CASE_INST_ID_);
 create index ACT_IDX_CASE_SENTRY_CASE_EXEC on ACT_RU_CASE_SENTRY_PART(CASE_EXEC_ID_);
+-- create decision definition table --
+create table ACT_RE_DECISION_DEF (
+    ID_ nvarchar(64) not null,
+    REV_ int,
+    CATEGORY_ nvarchar(255),
+    NAME_ nvarchar(255),
+    KEY_ nvarchar(255) not null,
+    VERSION_ int not null,
+    DEPLOYMENT_ID_ nvarchar(64),
+    RESOURCE_NAME_ nvarchar(4000),
+    DGRM_RESOURCE_NAME_ nvarchar(4000),
+    primary key (ID_)
+);
+
+-- create unique constraint on ACT_RE_DECISION_DEF --
+alter table ACT_RE_DECISION_DEF
+    add constraint ACT_UNIQ_DECISION_DEF
+    unique (KEY_,VERSION_);
 create table ACT_HI_PROCINST (
     ID_ nvarchar(64) not null,
     PROC_INST_ID_ nvarchar(64) not null,
@@ -620,6 +677,7 @@ create table ACT_HI_ATTACHMENT (
 
 create table ACT_HI_OP_LOG (
     ID_ nvarchar(64) not null,
+    DEPLOYMENT_ID_ nvarchar(64),
     PROC_DEF_ID_ nvarchar(64),
     PROC_DEF_KEY_ nvarchar(255),
     PROC_INST_ID_ nvarchar(64),
@@ -665,13 +723,14 @@ create table ACT_HI_JOB_LOG (
     JOB_ID_ nvarchar(64) not null,
     JOB_DUEDATE_ datetime2,
     JOB_RETRIES_ integer,
+    JOB_PRIORITY_ numeric(19,0) NOT NULL DEFAULT 0,
     JOB_EXCEPTION_MSG_ nvarchar(4000),
     JOB_EXCEPTION_STACK_ID_ nvarchar(64),
     JOB_STATE_ integer,
     JOB_DEF_ID_ nvarchar(64),
     JOB_DEF_TYPE_ nvarchar(255),
     JOB_DEF_CONFIGURATION_ nvarchar(255),
-    ACT_ID_ nvarchar(64),
+    ACT_ID_ nvarchar(255),
     EXECUTION_ID_ nvarchar(64),
     PROCESS_INSTANCE_ID_ nvarchar(64),
     PROCESS_DEF_ID_ nvarchar(64),
@@ -739,3 +798,69 @@ create index ACT_IDX_HI_CAS_I_BUSKEY on ACT_HI_CASEINST(BUSINESS_KEY_);
 create index ACT_IDX_HI_CAS_A_I_CREATE on ACT_HI_CASEACTINST(CREATE_TIME_);
 create index ACT_IDX_HI_CAS_A_I_END on ACT_HI_CASEACTINST(END_TIME_);
 create index ACT_IDX_HI_CAS_A_I_COMP on ACT_HI_CASEACTINST(CASE_ACT_ID_, END_TIME_, ID_);
+-- create history decision instance table --
+create table ACT_HI_DECINST (
+    ID_ nvarchar(64) NOT NULL,
+    DEC_DEF_ID_ nvarchar(64) NOT NULL,
+    DEC_DEF_KEY_ nvarchar(255) NOT NULL,
+    DEC_DEF_NAME_ nvarchar(255),
+    PROC_DEF_KEY_ nvarchar(255),
+    PROC_DEF_ID_ nvarchar(64),
+    PROC_INST_ID_ nvarchar(64),
+    CASE_DEF_KEY_ nvarchar(255),
+    CASE_DEF_ID_ nvarchar(64),
+    CASE_INST_ID_ nvarchar(64),
+    ACT_INST_ID_ nvarchar(64),
+    ACT_ID_ nvarchar(255),
+    EVAL_TIME_ datetime2 not null,
+    COLLECT_VALUE_ double precision,
+    primary key (ID_)
+);
+
+-- create history decision input table --
+create table ACT_HI_DEC_IN (
+    ID_ nvarchar(64) NOT NULL,
+    DEC_INST_ID_ nvarchar(64) NOT NULL,      
+    CLAUSE_ID_ nvarchar(64) NOT NULL,
+    CLAUSE_NAME_ nvarchar(255),
+    VAR_TYPE_ nvarchar(100),               
+    BYTEARRAY_ID_ nvarchar(64),
+    DOUBLE_ double precision,
+    LONG_ numeric(19,0),
+    TEXT_ nvarchar(4000),
+    TEXT2_ nvarchar(4000),    
+    primary key (ID_)
+);
+
+-- create history decision output table --
+create table ACT_HI_DEC_OUT (
+    ID_ nvarchar(64) NOT NULL,
+    DEC_INST_ID_ nvarchar(64) NOT NULL,         
+    CLAUSE_ID_ nvarchar(64) NOT NULL,
+    CLAUSE_NAME_ nvarchar(255),
+    RULE_ID_ nvarchar(64) NOT NULL,
+    RULE_ORDER_ int,
+    VAR_NAME_ nvarchar(255),
+    VAR_TYPE_ nvarchar(100),               
+    BYTEARRAY_ID_ nvarchar(64),
+    DOUBLE_ double precision,
+    LONG_ numeric(19,0),
+    TEXT_ nvarchar(4000),
+    TEXT2_ nvarchar(4000),
+    primary key (ID_)
+);
+
+
+create index ACT_IDX_HI_DEC_INST_ID on ACT_HI_DECINST(DEC_DEF_ID_);
+create index ACT_IDX_HI_DEC_INST_KEY on ACT_HI_DECINST(DEC_DEF_KEY_);
+create index ACT_IDX_HI_DEC_INST_PI on ACT_HI_DECINST(PROC_INST_ID_);
+create index ACT_IDX_HI_DEC_INST_CI on ACT_HI_DECINST(CASE_INST_ID_);
+create index ACT_IDX_HI_DEC_INST_ACT on ACT_HI_DECINST(ACT_ID_);
+create index ACT_IDX_HI_DEC_INST_ACT_INST on ACT_HI_DECINST(ACT_INST_ID_);
+create index ACT_IDX_HI_DEC_INST_TIME on ACT_HI_DECINST(EVAL_TIME_);
+
+create index ACT_IDX_HI_DEC_IN_INST on ACT_HI_DEC_IN(DEC_INST_ID_);
+create index ACT_IDX_HI_DEC_IN_CLAUSE on ACT_HI_DEC_IN(DEC_INST_ID_, CLAUSE_ID_);
+
+create index ACT_IDX_HI_DEC_OUT_INST on ACT_HI_DEC_OUT(DEC_INST_ID_);
+create index ACT_IDX_HI_DEC_OUT_RULE on ACT_HI_DEC_OUT(RULE_ORDER_, CLAUSE_ID_);

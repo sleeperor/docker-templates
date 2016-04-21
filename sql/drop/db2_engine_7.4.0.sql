@@ -1,3 +1,4 @@
+drop table ACT_RE_DECISION_DEF;
 drop index ACT_IDX_CASE_EXEC_BUSKEY;
 
 alter table ACT_RU_CASE_EXECUTION
@@ -111,6 +112,9 @@ alter table ACT_RU_INCIDENT
 
 alter table ACT_RU_INCIDENT
     drop foreign key ACT_FK_INC_RCAUSE;
+    
+alter table ACT_RU_EXT_TASK
+    drop foreign key ACT_FK_EXT_TASK_EXE;
 
 drop index ACT_IDX_EVENT_SUBSCR_CONFIG_;
 drop index ACT_IDX_ATHRZ_PROCEDEF;
@@ -136,6 +140,15 @@ drop index ACT_IDX_TASK_EXEC;
 drop index ACT_IDX_TASK_PROCINST;
 drop index ACT_IDX_TASK_PROC_DEF_ID;
 drop index ACT_IDX_METER_LOG;
+drop index ACT_IDX_AUTH_RESOURCE_ID;
+drop index ACT_IDX_EXT_TASK_TOPIC;
+
+drop index ACT_IDX_BYTEARRAY_NAME;
+drop index ACT_IDX_DEPLOYMENT_NAME;
+drop index ACT_IDX_JOBDEF_PROC_DEF_ID;
+drop index ACT_IDX_JOB_HANDLER_TYPE;
+drop index ACT_IDX_EVENT_SUBSCR_EVT_NAME;
+drop index ACT_IDX_PROCDEF_DEPLOYMENT_ID;
 
 drop table ACT_GE_PROPERTY;
 drop table ACT_GE_BYTEARRAY;
@@ -152,7 +165,27 @@ drop table ACT_RU_INCIDENT;
 drop table ACT_RU_AUTHORIZATION;
 drop table ACT_RU_FILTER;
 drop table ACT_RU_METER_LOG;
+drop table ACT_RU_EXT_TASK;
 
+drop index ACT_IDX_HI_DEC_INST_ID;
+drop index ACT_IDX_HI_DEC_INST_KEY;
+drop index ACT_IDX_HI_DEC_INST_PI;
+drop index ACT_IDX_HI_DEC_INST_CI;
+drop index ACT_IDX_HI_DEC_INST_ACT;
+drop index ACT_IDX_HI_DEC_INST_ACT_INST;
+drop index ACT_IDX_HI_DEC_INST_TIME;
+
+drop index ACT_IDX_HI_DEC_IN_INST;
+drop index ACT_IDX_HI_DEC_IN_CLAUSE;
+
+drop index ACT_IDX_HI_DEC_OUT_INST;
+drop index ACT_IDX_HI_DEC_OUT_RULE;
+
+drop table ACT_HI_DECINST;
+
+drop table ACT_HI_DEC_IN;
+
+drop table ACT_HI_DEC_OUT;
 drop index ACT_IDX_HI_CAS_I_CLOSE;
 drop index ACT_IDX_HI_CAS_I_BUSKEY;
 drop index ACT_IDX_HI_CAS_A_I_CREATE;
